@@ -15,9 +15,14 @@ async def upload_resume(file: UploadFile = File(...)):
     file_byte = await file.read()
     # print(f"Received file: {file.filename}, size: {len(file_byte)} bytes")
     resume_text = extract_text(file.filename, file_byte)
-    anslysis_result = analyze_resume(resume_text)
+    analysis_result = analyze_resume(resume_text = resume_text)
     
     return {
         "filename": file.filename,
-        "analysis_result": anslysis_result
+        "analysis_result": analysis_result
     }
+
+
+
+
+    
