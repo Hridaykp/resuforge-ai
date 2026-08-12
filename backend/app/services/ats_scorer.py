@@ -1,6 +1,8 @@
 import re
 from typing import Any
 
+from .jd_analyser import COMMON_TECHNICAL_SKILLS, analyze_job_description
+
 
 def calculate_ats_score(
     resume_text: str,
@@ -189,84 +191,28 @@ def calculate_ats_score(
     # 3. Skills & Keywords - 20 points
     # ---------------------------------------------------------
 
-    common_technical_skills = [
-        # Languages
-        "python",
-        "java",
-        "javascript",
-        "typescript",
-        "c",
-        "c++",
-        "c#",
-
-        # Frontend
-        "html",
-        "html5",
-        "css",
-        "react",
-        "angular",
-        "vue",
-        "node",
-        "tailwind",
-        "bootstrap",
-
-        # Backend
-        "fastapi",
-        "django",
-        "flask",
-        "spring",
-        "asp.net",
-        ".net",
-
-        # Databases
-        "sql",
-        "postgresql",
-        "mysql",
-        "mongodb",
-        "redis",
-
-        # Cloud / DevOps
-        "docker",
-        "kubernetes",
-        "aws",
-        "azure",
-        "gcp",
-        "terraform",
-        "jenkins",
-
-        # Tools / APIs
-        "git",
-        "github",
-        "rest",
-        "api",
-        "graphql",
-        "linux",
-    ]
-
+    
     matched_keywords: list[str] = []
-
+    missing_keywords: list[str] = []
     # ---------------------------------------------------------
     # JD-based keyword matching
     # ---------------------------------------------------------
 
     if job_description and job_description.strip():
 
-        jd_lower = job_description.lower()
-
-        target_keywords = [
-            skill
-            for skill in common_technical_skills
-            if contains_term(skill, jd_lower)
-        ]
-
-        # Remove duplicates while preserving order.
-        target_keywords = list(
-            dict.fromkeys(target_keywords)
+        # let JD analysis module handle the keyword extraction
+        jd_analysis = analyze_job_description(
+            job_description=job_description,
+            target_role=target_role,
         )
+
+        target_keywords = jd_analysis["skills"]
 
         for keyword in target_keywords:
             if contains_term(keyword):
                 matched_keywords.append(keyword)
+            else:
+                missing_keywords.append(keyword)
 
         if target_keywords:
             keyword_ratio = (
@@ -287,7 +233,7 @@ def calculate_ats_score(
 
     else:
 
-        for skill in common_technical_skills:
+        for skill in COMMON_TECHNICAL_SKILLS:
             if contains_term(skill):
                 matched_keywords.append(skill)
 
@@ -450,6 +396,8 @@ def calculate_ats_score(
         "max_score": 100,
         "breakdown": scores,
         "matched_keywords": matched_keywords,
+        "missing_keywords": missing_keywords,
+        "jd_analysis": jd_analysis if job_description else None,
         "target_role": target_role,
         "job_description_provided": bool(
             job_description
