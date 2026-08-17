@@ -95,25 +95,64 @@ def _extract_skills(text: str) -> list[str]:
     return list(dict.fromkeys(skills))
 
 
-def _extract_experience_requirement(
-    text: str,
-) -> str | None:
-    """Extract simple experience requirements."""
+def _extract_experience_requirement(text: str,) -> dict[str, Any] | None:
+    """
+    Extract minimum/maximum years of experience.
 
-    patterns = [
-        r"\b\d+\+?\s*(?:years?|yrs?)\b",
-        r"\b\d+\s*-\s*\d+\s*(?:years?|yrs?)\b",
-    ]
+    Examples:
+        "7+ years" -> min_years=7
+        "3 years" -> min_years=3
+        "3-5 years" -> min_years=3, max_years=5
+    """
 
-    for pattern in patterns:
-        match = re.search(
-            pattern,
-            text,
-            re.IGNORECASE,
-        )
+    # Check ranges first so "3-5 years" is not captured as "3 years".
+    range_pattern = (
+        r"\b"
+        r"(?P<min>\d+)"
+        r"\s*-\s*"
+        r"(?P<max>\d+)"
+        r"\s*"
+        r"(?:years?|yrs?)"
+        r"\b"
+    )
 
-        if match:
-            return match.group(0)
+    range_match = re.search(
+        range_pattern,
+        text,
+        re.IGNORECASE,
+    )
+
+    if range_match:
+        return {
+            "min_years": int(range_match.group("min")),
+            "max_years": int(range_match.group("max")),
+            "raw_requirement": range_match.group(0),
+            "is_required": True,
+        }
+
+    # Check requirements such as "7+ years" or "7 years".
+    single_pattern = (
+        r"\b"
+        r"(?P<min>\d+)"
+        r"\+?"
+        r"\s*"
+        r"(?:years?|yrs?)"
+        r"\b"
+    )
+
+    single_match = re.search(
+        single_pattern,
+        text,
+        re.IGNORECASE,
+    )
+
+    if single_match:
+        return {
+            "min_years": int(single_match.group("min")),
+            "max_years": None,
+            "raw_requirement": single_match.group(0),
+            "is_required": True,
+        }
 
     return None
 
@@ -130,6 +169,64 @@ def _extract_education(
             education.append(term)
 
     return list(dict.fromkeys(education))
+
+def _extract_responsibilities(
+    text: str,
+) -> list[str]:
+    """
+    Extract responsibility-like lines from the JD.
+
+    This is intentionally lightweight for V1.
+    A stronger semantic extraction can be added later with Gemini.
+    """
+
+    responsibilities = []
+
+    lines = text.splitlines()
+
+    responsibility_keywords = (
+        "responsibilities",
+        "responsibility",
+        "what you'll do",
+        "what you will do",
+        "requirements",
+        "role",
+        "you will",
+        "you'll",
+    )
+
+    in_responsibility_section = False
+
+    for line in lines:
+        cleaned = line.strip()
+
+        if not cleaned:
+            continue
+
+        lower_line = cleaned.lower()
+
+        # Detect a likely responsibility section.
+        if any(
+            keyword in lower_line
+            for keyword in responsibility_keywords
+        ):
+            in_responsibility_section = True
+            continue
+
+        if in_responsibility_section and cleaned.startswith(
+            ("-", "•", "*", "–", "—")
+        ):
+            # Accept bullet-point lines.
+            responsibility = cleaned.lstrip(
+                "-•*–— "
+            ).strip()
+
+            if responsibility:
+                responsibilities.append(
+                    responsibility
+                )
+
+    return responsibilities[:15]
 
 
 def analyze_job_description(
@@ -155,11 +252,30 @@ def analyze_job_description(
     )
 
     education_requirements = _extract_education(text)
-
+    responsibilities = []
     return {
         "target_role": target_role,
-        "skills": skills,
-        "experience_requirement": experience_requirement,
-        "education_requirements": education_requirements,
-        "skill_count": len(skills),
+
+        "requirements": {
+            "experience": experience_requirement,
+            "skills": {
+                "required": skills,
+                "preferred": [],
+            },
+            "education": {
+                "required": education_requirements,
+                "preferred": [],
+            },
+            "certifications": [],
+        },
+
+        "responsibilities": responsibilities,
+
+        "keywords": skills,
+
+        "skill_count": {
+            "required": len(skills),
+            "preferred": 0,
+            "total": len(skills),
+        },
     }

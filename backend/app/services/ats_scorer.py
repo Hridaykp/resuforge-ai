@@ -33,6 +33,19 @@ def calculate_ats_score(
     text = resume_text.strip()
     text_lower = text.lower()
 
+
+     # ---------------------------------------------------------
+    # JD Analysis
+    # ---------------------------------------------------------
+
+    jd_analysis: dict[str, Any] | None = None
+
+    if job_description and job_description.strip():
+        jd_analysis = analyze_job_description(
+            job_description=job_description,
+            target_role=target_role,
+        )
+
     # ---------------------------------------------------------
     # Helper
     # ---------------------------------------------------------
@@ -198,32 +211,69 @@ def calculate_ats_score(
     # JD-based keyword matching
     # ---------------------------------------------------------
 
-    if job_description and job_description.strip():
 
-        # let JD analysis module handle the keyword extraction
-        jd_analysis = analyze_job_description(
-            job_description=job_description,
-            target_role=target_role,
+    if jd_analysis:
+
+        required_skills = (
+            jd_analysis
+            .get("requirements", {})
+            .get("skills", {})
+            .get("required", [])
         )
 
-        target_keywords = jd_analysis["skills"]
+        preferred_skills = (
+            jd_analysis
+            .get("requirements", {})
+            .get("skills", {})
+            .get("preferred", [])
+        )
 
-        for keyword in target_keywords:
+        # ---------------------------------------------
+        # Required skills
+        # ---------------------------------------------
+
+        for keyword in required_skills:
+
             if contains_term(keyword):
                 matched_keywords.append(keyword)
+
             else:
                 missing_keywords.append(keyword)
 
-        if target_keywords:
+        # ---------------------------------------------
+        # Preferred skills
+        #
+        # We track them separately but don't make them
+        # part of the primary ATS score.
+        # ---------------------------------------------
+
+        preferred_matched_keywords: list[str] = []
+        preferred_missing_keywords: list[str] = []
+
+        for keyword in preferred_skills:
+
+            if contains_term(keyword):
+                preferred_matched_keywords.append(keyword)
+
+            else:
+                preferred_missing_keywords.append(keyword)
+
+        # ---------------------------------------------
+        # Required skill score
+        # ---------------------------------------------
+
+        if required_skills:
+
             keyword_ratio = (
                 len(matched_keywords)
-                / len(target_keywords)
+                / len(required_skills)
             )
 
             scores["skills_keywords"] = min(
                 round(keyword_ratio * 20),
                 20,
             )
+
         else:
             scores["skills_keywords"] = 0
 
@@ -397,6 +447,10 @@ def calculate_ats_score(
         "breakdown": scores,
         "matched_keywords": matched_keywords,
         "missing_keywords": missing_keywords,
+        "preferred_keywords": {
+            "matched": preferred_matched_keywords,
+            "missing": preferred_missing_keywords,
+        },
         "jd_analysis": jd_analysis if job_description else None,
         "target_role": target_role,
         "job_description_provided": bool(
