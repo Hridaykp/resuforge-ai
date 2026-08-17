@@ -95,67 +95,93 @@ def _extract_skills(text: str) -> list[str]:
     return list(dict.fromkeys(skills))
 
 
-def _extract_experience_requirement(text: str,) -> dict[str, Any] | None:
+def _extract_experience_requirement(
+    text: str,
+) -> dict[str, Any] | None:
     """
-    Extract minimum/maximum years of experience.
+    Extract experience requirements from a JD.
 
-    Examples:
-        "7+ years" -> min_years=7
-        "3 years" -> min_years=3
-        "3-5 years" -> min_years=3, max_years=5
+    Supports:
+    - 2-5 years
+    - 2 to 5 years
+    - 2+ years
+    - 2 years
     """
 
-    # Check ranges first so "3-5 years" is not captured as "3 years".
-    range_pattern = (
-        r"\b"
-        r"(?P<min>\d+)"
-        r"\s*-\s*"
-        r"(?P<max>\d+)"
-        r"\s*"
-        r"(?:years?|yrs?)"
-        r"\b"
-    )
+    patterns = [
+        # Range: 2-5 years / 2 to 5 years
+        (
+            (
+                r"\b(\d+(?:\.\d+)?)\s*"  
+                r"(?:-|–|—|to)\s*"
+                r"(\d+(?:\.\d+)?)\s*"
+                r"(?:years?|yrs?)\b"
+            ),
+            "range",
+        ),
 
-    range_match = re.search(
-        range_pattern,
-        text,
-        re.IGNORECASE,
-    )
+        # Minimum: 2+ years
+        (
+            (
+                r"\b(\d+(?:\.\d+)?)\s*\+\s*"  
+                r"(?:years?|yrs?)\b"
+            ),
+            "minimum",
+        ),
 
-    if range_match:
-        return {
-            "min_years": int(range_match.group("min")),
-            "max_years": int(range_match.group("max")),
-            "raw_requirement": range_match.group(0),
-            "is_required": True,
-        }
+        # Exact: 2 years
+        (
+            (
+                r"\b(\d+(?:\.\d+)?)\s*"  
+                r"(?:years?|yrs?)\b"
+            ),
+            "exact",
+        ),
+    ]
 
-    # Check requirements such as "7+ years" or "7 years".
-    single_pattern = (
-        r"\b"
-        r"(?P<min>\d+)"
-        r"\+?"
-        r"\s*"
-        r"(?:years?|yrs?)"
-        r"\b"
-    )
+    for pattern, requirement_type in patterns:
 
-    single_match = re.search(
-        single_pattern,
-        text,
-        re.IGNORECASE,
-    )
+        match = re.search(
+            pattern,
+            text,
+            re.IGNORECASE,
+        )
 
-    if single_match:
-        return {
-            "min_years": int(single_match.group("min")),
-            "max_years": None,
-            "raw_requirement": single_match.group(0),
-            "is_required": True,
-        }
+        if not match:
+            continue
+
+        if requirement_type == "range":
+            min_years = float(match.group(1))
+            max_years = float(match.group(2))
+
+            return {
+                "min_years": min_years,
+                "max_years": max_years,
+                "raw_requirement": match.group(0),
+                "is_required": True,
+            }
+
+        if requirement_type == "minimum":
+            min_years = float(match.group(1))
+
+            return {
+                "min_years": min_years,
+                "max_years": None,
+                "raw_requirement": match.group(0),
+                "is_required": True,
+            }
+
+        if requirement_type == "exact":
+            years = float(match.group(1))
+
+            return {
+                "min_years": years,
+                "max_years": years,
+                "raw_requirement": match.group(0),
+                "is_required": True,
+            }
 
     return None
-
 
 def _extract_education(
     text: str,

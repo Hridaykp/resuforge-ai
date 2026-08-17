@@ -3,6 +3,7 @@ from fastapi import APIRouter, File, UploadFile
 
 from ..services.ai_analyzer import analyze_resume
 from ..services.ats_scorer import calculate_ats_score
+from ..services.resume_analyzer import analyze_resume_structure
 from ..services.resume_parser import extract_text
 
 router = APIRouter(
@@ -40,11 +41,18 @@ async def analyze_resume_endpoint(
     )
 
     ai_result = analyze_resume(
-        resume_text=resume_text
+        resume_text=resume_text,
+        target_role=target_role,
+        job_description=job_description
+    )
+
+    resume_result = analyze_resume_structure(
+        resume_text=resume_text,
     )
 
     return {
         "filename": file.filename,
+        "resume_analysis": resume_result,
         "ats_analysis": ats_result,
         "ai_analysis": ai_result,
     }
