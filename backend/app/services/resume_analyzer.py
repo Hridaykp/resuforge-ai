@@ -227,7 +227,7 @@ def analyze_resume_structure(resume_text: str,) -> dict[str, Any]:
         raise RuntimeError(
             "GEMINI_API_KEY is not configured."
         )
-
+    
     try:
         global client
 

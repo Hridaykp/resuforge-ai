@@ -1,7 +1,7 @@
 import re
 from typing import Any
 
-from .jd_analyser import COMMON_TECHNICAL_SKILLS, analyze_job_description
+from ..services.jd_analyzer import COMMON_TECHNICAL_SKILLS, analyze_job_description
 
 
 def calculate_ats_score(
