@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 from ..services.jd_analyzer import COMMON_TECHNICAL_SKILLS, analyze_job_description
+from ..services.skill_normalizer import skill_matches
 
 
 def calculate_ats_score(
@@ -210,7 +211,8 @@ def calculate_ats_score(
     # ---------------------------------------------------------
     # JD-based keyword matching
     # ---------------------------------------------------------
-
+    preferred_matched_keywords: list[str] = []
+    preferred_missing_keywords: list[str] = []
 
     if jd_analysis:
 
@@ -233,10 +235,8 @@ def calculate_ats_score(
         # ---------------------------------------------
 
         for keyword in required_skills:
-
-            if contains_term(keyword):
+            if skill_matches(resume_text= text, jd_skill=keyword):
                 matched_keywords.append(keyword)
-
             else:
                 missing_keywords.append(keyword)
 
@@ -247,14 +247,12 @@ def calculate_ats_score(
         # part of the primary ATS score.
         # ---------------------------------------------
 
-        preferred_matched_keywords: list[str] = []
-        preferred_missing_keywords: list[str] = []
+
 
         for keyword in preferred_skills:
 
-            if contains_term(keyword):
+            if skill_matches(resume_text= text, jd_skill=keyword):
                 preferred_matched_keywords.append(keyword)
-
             else:
                 preferred_missing_keywords.append(keyword)
 
@@ -453,8 +451,5 @@ def calculate_ats_score(
         },
         "jd_analysis": jd_analysis if job_description else None,
         "target_role": target_role,
-        "job_description_provided": bool(
-            job_description
-            and job_description.strip()
-        ),
+        
     }

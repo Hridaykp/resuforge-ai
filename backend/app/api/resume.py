@@ -36,7 +36,7 @@ async def analyze_resume_endpoint(
 
     ats_result = calculate_ats_score(
         resume_text=resume_text,
-        target_role=target_role,
+        target_role = target_role, 
         job_description=job_description
     )
 
