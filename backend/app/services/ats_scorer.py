@@ -248,7 +248,7 @@ def calculate_ats_score(
         # ---------------------------------------------
 
 
-
+        
         for keyword in preferred_skills:
 
             if skill_matches(resume_text= text, jd_skill=keyword):
