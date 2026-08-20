@@ -6,6 +6,36 @@ export default function AnalyzePage() {
   const [file, setFile] = useState<File | null>(null);
   const [targetRole, setTargetRole] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+  const [error, setError] = useState("");
+
+  const validateForm = (): boolean => {
+    setError("");
+
+    if (!file) {
+        setError("Please upload your resume.");
+        return false;
+    }
+
+    const allowedTypes = [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+        setError("Please upload a PDF or DOCX file.");
+        return false;
+    }
+
+    const maxFileSize = 5 * 1024 * 1024; // 5 MB
+
+    if (file.size > maxFileSize) {
+        setError("Resume file must be smaller than 5 MB.");
+        return false;
+    }
+
+    return true;
+  };
+
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -107,11 +137,18 @@ export default function AnalyzePage() {
             relevant keywords and skills.
           </p>
         </div>
-
+        
+        {/* For displaying error */}
+        {error && (
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+        </div>
+        )}
         {/* Analyze Button */}
         <button
           type="button"
           className="mt-8 w-full rounded-xl bg-blue-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+          onClick={validateForm}
         >
           Analyze Resume
         </button>
