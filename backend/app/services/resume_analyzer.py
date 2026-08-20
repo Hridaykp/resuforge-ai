@@ -5,10 +5,6 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-# =========================================================
-# Pydantic Schemas
-# =========================================================
-
 
 class CandidateInfo(BaseModel):
     name: str | None = None

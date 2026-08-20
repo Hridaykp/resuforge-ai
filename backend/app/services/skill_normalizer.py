@@ -1,7 +1,6 @@
 import re
 
-# map  
-#  
+# Map common skill aliases to their canonical names for consistent matching.
 SKILL_ALIASES: dict[str, str] = {
     # SQL / Databases
     "mysql": "sql",
@@ -101,10 +100,7 @@ def skill_matches(
     return False
 
 
-def _contains_term(
-    term: str,
-    text: str,
-) -> bool:
+def _contains_term(term: str,text: str,) -> bool:
     """
     Match a term as a complete word/phrase rather than
     matching it inside another word.
