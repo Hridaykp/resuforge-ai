@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { analyzeResume } from "@/lib/api";
 
 export default function AnalyzePage() {
   const [file, setFile] = useState<File | null>(null);
   const [targetRole, setTargetRole] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [error, setError] = useState("");
-
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
   const validateForm = (): boolean => {
     setError("");
 
@@ -34,8 +36,38 @@ export default function AnalyzePage() {
     }
 
     return true;
-  };
+    };
 
+    const handleAnalyze = async () => {
+        const isValid = validateForm();
+
+        if (!isValid || !file) {
+            return;
+        }
+
+        setIsAnalyzing(true);
+        setError("");
+
+        try {
+            const result = await analyzeResume(
+            file,
+            targetRole,
+            jobDescription,
+            );
+
+            console.log("Analysis result:", result);
+        } catch (error) {
+            console.error(error);
+
+            setError(
+            error instanceof Error
+                ? error.message
+                : "Something went wrong while analyzing your resume.",
+            );
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -137,7 +169,7 @@ export default function AnalyzePage() {
             relevant keywords and skills.
           </p>
         </div>
-        
+
         {/* For displaying error */}
         {error && (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -148,7 +180,7 @@ export default function AnalyzePage() {
         <button
           type="button"
           className="mt-8 w-full rounded-xl bg-blue-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-          onClick={validateForm}
+          onClick={handleAnalyze}
         >
           Analyze Resume
         </button>

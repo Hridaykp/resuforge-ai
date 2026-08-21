@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 
 from ..services.ai_analyzer import analyze_resume
 from ..services.ats_scorer import calculate_ats_score
@@ -28,8 +28,8 @@ async def upload_resume(file: UploadFile = File(...)):
 @router.post("/analyze")
 async def analyze_resume_endpoint(
     file: UploadFile = File(...),
-    target_role: str | None = None,
-    job_description: str | None = None
+    target_role: str | None = Form(None),
+    job_description: str | None = Form(None)
 ):
     file_byte = await file.read()
     resume_text = extract_text(file.filename, file_byte)
@@ -48,6 +48,8 @@ async def analyze_resume_endpoint(
 
     resume_result = analyze_resume_structure(
         resume_text=resume_text,
+        target_role=target_role,
+        job_description=job_description,
     )
 
     return {

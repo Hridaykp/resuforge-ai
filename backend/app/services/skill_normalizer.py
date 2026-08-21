@@ -1,112 +1,120 @@
 import re
 
-# Map common skill aliases to their canonical names for consistent matching.
-SKILL_ALIASES: dict[str, str] = {
-    # SQL / Databases
-    "mysql": "sql",
-    "postgresql": "sql",
-    "postgres": "sql",
-    "sql server": "sql",
-    "microsoft sql server": "sql",
+# =========================================================
+# Exact aliases
+# =========================================================
 
+SKILL_ALIASES: dict[str, str] = {
+
+    # -----------------------------------------------------
     # React
+    # -----------------------------------------------------
     "reactjs": "react",
     "react.js": "react",
     "react js": "react",
 
+    # -----------------------------------------------------
     # AWS
+    # -----------------------------------------------------
     "amazon web services": "aws",
     "amazon aws": "aws",
     "aws cloud": "aws",
 
+    # -----------------------------------------------------
     # JavaScript
+    # -----------------------------------------------------
     "js": "javascript",
 
+    # -----------------------------------------------------
     # TypeScript
+    # -----------------------------------------------------
     "ts": "typescript",
 
+    # -----------------------------------------------------
     # Node.js
+    # -----------------------------------------------------
     "nodejs": "node.js",
     "node js": "node.js",
 
+    # -----------------------------------------------------
     # C#
+    # -----------------------------------------------------
     "csharp": "c#",
     "c sharp": "c#",
 
+    # -----------------------------------------------------
     # .NET
+    # -----------------------------------------------------
     "dotnet": ".net",
     "dot net": ".net",
 }
 
 
+# =========================================================
+# Broader skill categories
+#
+# These are useful for semantic/general classification,
+# but SHOULD NOT be used to claim that one specific
+# technology exists in the resume.
+# =========================================================
+
+SKILL_CATEGORIES: dict[str, set[str]] = {
+    "sql": {
+        "sql",
+        "mysql",
+        "postgresql",
+        "postgres",
+        "sql server",
+        "microsoft sql server",
+        "oracle",
+        "sqlite",
+    },
+}
+
+
+# =========================================================
+# Normalize
+# =========================================================
+
 def normalize_skill(skill: str) -> str:
     """
-    Convert a skill name into its canonical form.
+    Normalize a skill to its canonical exact name.
 
     Examples:
-        MySQL -> sql
-        PostgreSQL -> sql
+        MySQL -> mysql
+        PostgreSQL -> postgresql
         ReactJS -> react
         React.js -> react
         AWS Cloud -> aws
+        C Sharp -> c#
     """
 
     normalized = skill.strip().lower()
 
-    # Normalize multiple spaces
-    normalized = re.sub(r"\s+", " ", normalized)
+    normalized = re.sub(
+        r"\s+",
+        " ",
+        normalized,
+    )
 
-    # Return canonical name if an alias exists
     return SKILL_ALIASES.get(
         normalized,
         normalized,
     )
 
 
-def skill_matches(
-    resume_text: str,
-    jd_skill: str,
+# =========================================================
+# Contains term
+# =========================================================
+
+def _contains_term(
+    term: str,
+    text: str,
 ) -> bool:
-    """
-    Check whether a JD skill is present in the resume,
-    including known aliases.
 
-    Examples:
-        Resume: "Python, MySQL"
-        JD skill: "SQL"
-        -> True
-
-        Resume: "ReactJS"
-        JD skill: "React"
-        -> True
-    """
-
-    resume_lower = resume_text.lower()
-    normalized_jd_skill = normalize_skill(jd_skill)
-
-    # Check the JD skill itself
-    if _contains_term(jd_skill, resume_lower):
-        return True
-
-    # Check aliases belonging to the same canonical skill
-    for alias, canonical_skill in SKILL_ALIASES.items():
-
-        if canonical_skill != normalized_jd_skill:
-            continue
-
-        if _contains_term(alias, resume_lower):
-            return True
-
-    return False
-
-
-def _contains_term(term: str,text: str,) -> bool:
-    """
-    Match a term as a complete word/phrase rather than
-    matching it inside another word.
-    """
-
-    escaped_term = re.escape(term.lower())
+    escaped_term = re.escape(
+        term.lower().strip()
+    )
 
     return bool(
         re.search(
@@ -114,3 +122,78 @@ def _contains_term(term: str,text: str,) -> bool:
             text,
         )
     )
+
+
+# =========================================================
+# Skill matching
+# =========================================================
+
+def skill_matches(
+    resume_text: str,
+    jd_skill: str,
+) -> bool:
+    """
+    Check whether the exact JD skill, or one of its
+    true aliases, exists in the resume.
+
+    Important:
+        MySQL does NOT match PostgreSQL.
+        PostgreSQL does NOT match MySQL.
+
+    However:
+        ReactJS matches React.
+        NodeJS matches Node.js.
+        C Sharp matches C#.
+    """
+
+    if not resume_text or not jd_skill:
+        return False
+
+    resume_lower = resume_text.lower()
+
+    normalized_jd_skill = normalize_skill(
+        jd_skill
+    )
+
+    # -----------------------------------------------------
+    # 1. Exact JD skill
+    # -----------------------------------------------------
+
+    if _contains_term(
+        normalized_jd_skill,
+        resume_lower,
+    ):
+        return True
+
+    # -----------------------------------------------------
+    # 2. Exact aliases
+    #
+    # Example:
+    # JD = React
+    # Resume = ReactJS
+    # -----------------------------------------------------
+
+    for alias, canonical in SKILL_ALIASES.items():
+
+        if canonical != normalized_jd_skill:
+            continue
+
+        if _contains_term(
+            alias,
+            resume_lower,
+        ):
+            return True
+
+    # -----------------------------------------------------
+    # Do NOT use SKILL_CATEGORIES here.
+    #
+    # Therefore:
+    #
+    # MySQL != PostgreSQL
+    # MySQL != Oracle
+    # PostgreSQL != MySQL
+    #
+    # even though all belong to SQL.
+    # -----------------------------------------------------
+
+    return False
