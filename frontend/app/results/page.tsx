@@ -8,6 +8,7 @@ import ResumeOverview from "@/components/results/ResumeOverview";
 import AiAssessment from "@/components/results/AiAssessment";
 import ExperienceProjects from "@/components/results/ExperienceProjects";
 import EducationCertifications from "@/components/results/EducationCertifications";
+import OptimizationTips from "@/components/results/OptimizationTips";
 import type { ResumeAnalysisResponse } from "@/types/resume";
 
 export default function ResultsPage() {
@@ -108,6 +109,12 @@ export default function ResultsPage() {
           <EducationCertifications
             education={result.resume_analysis.education}
             certifications={result.resume_analysis.certifications}
+          />
+        </div>
+        <div className="mt-6">
+          <OptimizationTips 
+            tips={result.ai_analysis.ats_optimization_tips}
+            missingInformation={result.ai_analysis.missing_information}
           />
         </div>
       </div>
