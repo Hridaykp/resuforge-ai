@@ -9,6 +9,7 @@ import AiAssessment from "@/components/results/AiAssessment";
 import ExperienceProjects from "@/components/results/ExperienceProjects";
 import EducationCertifications from "@/components/results/EducationCertifications";
 import OptimizationTips from "@/components/results/OptimizationTips";
+import ResultsHeader from "@/components/results/ResultsHeader";
 import type { ResumeAnalysisResponse } from "@/types/resume";
 
 export default function ResultsPage() {
@@ -54,18 +55,12 @@ export default function ResultsPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-16">
-      <div className="mx-auto max-w-5xl">
-        <h1 className="text-4xl font-bold text-gray-900">
-          Resume Analysis
-        </h1>
-
-        <p className="mt-3 text-gray-600">
-          {result.filename}
-        </p>
-
-        {/* <pre className="mt-8 overflow-auto rounded-xl bg-gray-900 p-6 text-sm text-white">
-          {JSON.stringify(result, null, 2)}
-        </pre> */}
+      <ResultsHeader 
+        filename={result.filename}
+        targetRole={result.resume_analysis.target_role}
+      />
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        
         <div className="mt-8">
           <ResumeOverview
             candidate={result.resume_analysis.candidate}
