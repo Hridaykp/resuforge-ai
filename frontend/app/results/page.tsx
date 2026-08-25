@@ -5,6 +5,7 @@ import AtsScore from "@/components/results/AtsScore";
 import AtsBreakdown from "@/components/results/AtsBreakdown";
 import SkillsMatch from "@/components/results/SkillsMatch";
 import ResumeOverview from "@/components/results/ResumeOverview";
+import AiAssessment from "@/components/results/AiAssessment";
 import type { ResumeAnalysisResponse } from "@/types/resume";
 
 export default function ResultsPage() {
@@ -87,7 +88,14 @@ export default function ResultsPage() {
             missingKeywords={result.ats_analysis.missing_keywords}
           />
         </div>
-        
+        <div className="mt-6">
+          <AiAssessment
+            overallAssessment={result.ai_analysis.overall_assessment}
+            strengths={result.ai_analysis.strengths}
+            weaknesses={result.ai_analysis.weaknesses}
+            suggestions={result.ai_analysis.suggestions}
+          />
+        </div>
       </div>
     </main>
   );
