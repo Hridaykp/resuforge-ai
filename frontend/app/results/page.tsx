@@ -7,6 +7,7 @@ import SkillsMatch from "@/components/results/SkillsMatch";
 import ResumeOverview from "@/components/results/ResumeOverview";
 import AiAssessment from "@/components/results/AiAssessment";
 import ExperienceProjects from "@/components/results/ExperienceProjects";
+import EducationCertifications from "@/components/results/EducationCertifications";
 import type { ResumeAnalysisResponse } from "@/types/resume";
 
 export default function ResultsPage() {
@@ -70,7 +71,7 @@ export default function ResultsPage() {
             targetRole={result.resume_analysis.target_role}
             experience={result.resume_analysis.experience}
             skills={result.resume_analysis.skills}
-          />
+          /> 
         </div>
         <div className="mt-8">
           <AtsScore 
@@ -103,7 +104,13 @@ export default function ResultsPage() {
             experience={result.resume_analysis.experience}
           />
         </div>
+        <div className="mt-6">
+          <EducationCertifications
+            education={result.resume_analysis.education}
+            certifications={result.resume_analysis.certifications}
+          />
+        </div>
       </div>
-    </main>
+    </main>         
   );
 }
