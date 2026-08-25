@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AtsScore from "@/components/results/AtsScore";
 import AtsBreakdown from "@/components/results/AtsBreakdown";
 import SkillsMatch from "@/components/results/SkillsMatch";
+import ResumeOverview from "@/components/results/ResumeOverview";
 import type { ResumeAnalysisResponse } from "@/types/resume";
 
 export default function ResultsPage() {
@@ -62,6 +63,14 @@ export default function ResultsPage() {
           {JSON.stringify(result, null, 2)}
         </pre> */}
         <div className="mt-8">
+          <ResumeOverview
+            candidate={result.resume_analysis.candidate}
+            targetRole={result.resume_analysis.target_role}
+            experience={result.resume_analysis.experience}
+            skills={result.resume_analysis.skills}
+          />
+        </div>
+        <div className="mt-8">
           <AtsScore 
           score={result.ats_analysis.ats_score}
           maxScore={result.ats_analysis.max_score}
@@ -78,6 +87,7 @@ export default function ResultsPage() {
             missingKeywords={result.ats_analysis.missing_keywords}
           />
         </div>
+        
       </div>
     </main>
   );
