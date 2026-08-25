@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { analyzeResume } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { json } from "stream/consumers";
 
 export default function AnalyzePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -10,6 +12,9 @@ export default function AnalyzePage() {
   const [error, setError] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
+  const router = useRouter();
+
+
   const validateForm = (): boolean => {
     setError("");
 
@@ -49,13 +54,13 @@ export default function AnalyzePage() {
         setError("");
 
         try {
-            const result = await analyzeResume(
-            file,
-            targetRole,
-            jobDescription,
-            );
+            const result = await analyzeResume( file, targetRole, jobDescription, );
 
-            console.log("Analysis result:", result);
+            sessionStorage.setItem("resumeAnalysis", JSON.stringify(result));
+
+            router.push("results");
+
+            // console.log("Analysis result:", result);
         } catch (error) {
             console.error(error);
 

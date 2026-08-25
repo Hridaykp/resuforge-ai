@@ -1,4 +1,51 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import AtsScore from "@/components/results/AtsScore";
+import AtsBreakdown from "@/components/results/AtsBreakdown";
+import type { ResumeAnalysisResponse } from "@/types/resume";
+
 export default function ResultsPage() {
+  
+  const [result, setResult] = useState<ResumeAnalysisResponse | null>(null);
+
+  useEffect(() => {
+    const storedResult =
+      sessionStorage.getItem("resumeAnalysis");
+
+    if (!storedResult) {
+      return;
+    }
+
+    try {
+      const parsedResult: ResumeAnalysisResponse =
+        JSON.parse(storedResult);
+
+      setResult(parsedResult);
+    } catch (error) {
+      console.error(
+        "Failed to read analysis result:",
+        error,
+      );
+    }
+  }, []);
+
+  if (!result) {
+    return (
+      <main className="min-h-screen bg-gray-50 px-6 py-16">
+        <div className="mx-auto max-w-5xl">
+          <h1 className="text-4xl font-bold text-gray-900">
+            No analysis found
+          </h1>
+
+          <p className="mt-3 text-gray-600">
+            Please analyze a resume first.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-16">
       <div className="mx-auto max-w-5xl">
@@ -7,8 +54,23 @@ export default function ResultsPage() {
         </h1>
 
         <p className="mt-3 text-gray-600">
-          Your resume analysis results will appear here.
+          {result.filename}
         </p>
+
+        {/* <pre className="mt-8 overflow-auto rounded-xl bg-gray-900 p-6 text-sm text-white">
+          {JSON.stringify(result, null, 2)}
+        </pre> */}
+        <div className="mt-8">
+          <AtsScore 
+          score={result.ats_analysis.ats_score}
+          maxScore={result.ats_analysis.max_score}
+          />
+        </div>
+        <div className="mt-6">
+          <AtsBreakdown
+            breakdown={result.ats_analysis.breakdown}
+          />
+        </div>
       </div>
     </main>
   );
