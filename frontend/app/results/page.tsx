@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AtsScore from "@/components/results/AtsScore";
 import AtsBreakdown from "@/components/results/AtsBreakdown";
+import SkillsMatch from "@/components/results/SkillsMatch";
 import type { ResumeAnalysisResponse } from "@/types/resume";
 
 export default function ResultsPage() {
@@ -69,6 +70,12 @@ export default function ResultsPage() {
         <div className="mt-6">
           <AtsBreakdown
             breakdown={result.ats_analysis.breakdown}
+          />
+        </div>
+        <div className="mt-6">
+          <SkillsMatch
+            matchedKeywords={result.ats_analysis.matched_keywords}
+            missingKeywords={result.ats_analysis.missing_keywords}
           />
         </div>
       </div>
