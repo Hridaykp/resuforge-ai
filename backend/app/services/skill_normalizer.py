@@ -6,48 +6,39 @@ import re
 
 SKILL_ALIASES: dict[str, str] = {
 
-    # -----------------------------------------------------
     # React
-    # -----------------------------------------------------
     "reactjs": "react",
     "react.js": "react",
     "react js": "react",
 
-    # -----------------------------------------------------
     # AWS
-    # -----------------------------------------------------
     "amazon web services": "aws",
     "amazon aws": "aws",
     "aws cloud": "aws",
 
-    # -----------------------------------------------------
     # JavaScript
-    # -----------------------------------------------------
     "js": "javascript",
 
-    # -----------------------------------------------------
     # TypeScript
-    # -----------------------------------------------------
     "ts": "typescript",
 
-    # -----------------------------------------------------
     # Node.js
-    # -----------------------------------------------------
     "nodejs": "node.js",
     "node js": "node.js",
 
-    # -----------------------------------------------------
     # C#
-    # -----------------------------------------------------
     "csharp": "c#",
     "c sharp": "c#",
 
-    # -----------------------------------------------------
+    # C++
+    "cpp": "c++",
+    "c plus plus": "c++",
+
     # .NET
-    # -----------------------------------------------------
     "dotnet": ".net",
     "dot net": ".net",
 }
+
 
 
 # =========================================================
@@ -111,14 +102,40 @@ def _contains_term(
     term: str,
     text: str,
 ) -> bool:
+    """
+    Check whether a skill exists as a standalone term.
 
-    escaped_term = re.escape(
-        term.lower().strip()
-    )
+    Unlike a normal word-boundary check, this also handles
+    programming-language names correctly.
+
+    Examples:
+        C     matches "C"
+        C     does NOT match "C#"
+        C     does NOT match "C++"
+        C++   matches "C++"
+        C#    matches "C#"
+        Java  does NOT match "JavaScript"
+    """
+
+    term = term.lower().strip()
+    text = text.lower()
+
+    escaped_term = re.escape(term)
+
+    # -----------------------------------------------------
+    # Special handling for short / symbolic skills
+    # -----------------------------------------------------
+
+    if term in {"c", "c++", "c#"}:
+        pattern = rf"(?<![a-z0-9+#]){escaped_term}(?![a-z0-9+#])"
+
+    else:
+        # Normal skills
+        pattern = rf"(?<![a-z0-9]){escaped_term}(?![a-z0-9])"
 
     return bool(
         re.search(
-            rf"(?<!\w){escaped_term}(?!\w)",
+            pattern,
             text,
         )
     )
