@@ -3,12 +3,8 @@ interface AtsScoreProps {
   maxScore: number;
 }
 
-export default function AtsScore({
-  score,
-  maxScore,
-}: AtsScoreProps) {
-  // Convert the raw score into a percentage so we can
-  // determine the appropriate score category.
+export default function AtsScore({score, maxScore,}: AtsScoreProps) {
+// Convert the raw score into a percentage so we can determine the appropriate score category.
   const percentage = (score / maxScore) * 100;
 
   // Returns the text color based on the ATS score.
@@ -24,7 +20,7 @@ export default function AtsScore({
     return "text-red-600";
   };
 
-  // Returns a human-readable label for the score.
+
   const getScoreLabel = () => {
     if (percentage >= 80) {
       return "Strong Match";

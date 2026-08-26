@@ -1,7 +1,12 @@
+import time
+
 from app.core.config import GEMINI_API_KEY
 from google import genai
 
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+
+MAX_RETRIES = 3
+BASE_DELAY = 2
 
 
 def _build_prompt(
@@ -154,6 +159,74 @@ def _parse_ai_response(text: str) -> dict:
     return sections
 
 
+def _is_retryable_error(exc: Exception) -> bool:
+
+    # Determine whether a Gemini error is temporary and safe to retry.
+
+    error_text = str(exc).lower()
+
+    retryable_errors = [
+        "503",
+        "unavailable",
+        "service unavailable",
+        "429",
+        "resource exhausted",
+        "500",
+        "internal",
+        "504",
+        "deadline exceeded",
+        "timeout",
+    ]
+
+    return any(
+        error in error_text
+        for error in retryable_errors
+    )
+
+
+def _generate_with_retry(prompt: str,):
+    
+    # Use Gemini API with automatic retries when a request fails.
+
+    global client
+
+    if client is None:
+        client = genai.Client(
+            api_key=GEMINI_API_KEY
+        )
+
+    for attempt in range(MAX_RETRIES):
+
+        try:
+            return client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt,
+            )
+
+        except Exception as exc:
+
+            # Don't retry permanent errors such as
+            # invalid API keys or malformed requests.
+            if not _is_retryable_error(exc):
+                raise
+
+            # Last attempt failed.
+            if attempt == MAX_RETRIES - 1:
+                raise RuntimeError(
+                    "Gemini AI service is temporarily unavailable "
+                    "after multiple retry attempts."
+                ) from exc
+
+            delay = BASE_DELAY * (2 ** attempt)
+
+            print(
+                f"Gemini request failed. "
+                f"Retrying in {delay} seconds..."
+            )
+
+            time.sleep(delay)
+
+
 def analyze_resume(
     resume_text: str,
     target_role: str | None = None,
@@ -173,24 +246,17 @@ def analyze_resume(
             job_description=job_description,
         )
 
-        global client
 
-        if client is None:
-            client = genai.Client(
-                api_key=GEMINI_API_KEY
-            )
-
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt,
-        )
+        response = _generate_with_retry(prompt=prompt)
 
         if not response.text:
             raise RuntimeError(
                 "No response from the AI model."
             )
-
         return _parse_ai_response(response.text)
+    
+    except RuntimeError:
+        raise
 
     except Exception as exc:
         raise RuntimeError(

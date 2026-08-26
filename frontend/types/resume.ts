@@ -1,4 +1,5 @@
 export interface ResumeAnalysisResponse {
+  priority_improvements: PriorityImprovement[];
   filename: string;
 
   resume_analysis: {
@@ -102,6 +103,53 @@ export interface ResumeAnalysisResponse {
     missing_information: string[];
   };
 }
+
+export interface PriorityImprovement {
+  // Stable identifier for the improvement.
+  //
+  // Example:
+  // "backend-technologies"
+  // "experience-description"
+  // "project-description"
+  //
+  // Useful later when implementing:
+  // "Improve this" / "Apply improvement"
+  id: string;
+
+  // Display order.
+  //
+  // 1 = highest priority
+  // 2 = second highest
+  // etc.
+  priority: number;
+
+  // Short title shown to the user.
+  //
+  // Example:
+  // "Strengthen backend technologies"
+  title: string;
+
+  // Explanation of why this improvement matters.
+  description: string;
+
+  // How important the improvement is.
+  severity: "high" | "medium" | "low";
+
+  // Keywords related to this improvement.
+  //
+  // Example:
+  // ["REST", "SQL", "Git"]
+  //
+  // These can later be used by the resume improvement system.
+  related_keywords: string[];
+
+  // Resume sections affected by this improvement.
+  //
+  // Example:
+  // ["skills", "projects", "experience"]
+  related_sections: string[];
+}
+
 
 export interface ExperienceEntry {
   company: string;

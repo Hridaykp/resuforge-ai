@@ -17,11 +17,8 @@ const breakdownLabels = {
   readability_parsing: "Readability & Parsing",
 };
 
-export default function AtsBreakdown({
-  breakdown,
-}: AtsBreakdownProps) {
-  // Convert the breakdown object into an array so we can
-  // easily render each category using .map().
+export default function AtsBreakdown({breakdown, }: AtsBreakdownProps) {
+  // Convert the breakdown object into an array so we can easily render each category using .map().
   const items = Object.entries(breakdown) as [
     keyof typeof breakdownLabels,
     number,

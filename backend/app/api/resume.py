@@ -3,6 +3,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 
 from ..services.ai_analyzer import analyze_resume
 from ..services.ats_scorer import calculate_ats_score
+from ..services.priority_improvements import generate_priority_improvements
 from ..services.resume_analyzer import analyze_resume_structure
 from ..services.resume_parser import extract_text
 
@@ -52,11 +53,18 @@ async def analyze_resume_endpoint(
         job_description=job_description,
     )
 
+    priority_improvements = generate_priority_improvements(
+        ats_result = ats_result,
+        ai_result = ai_result,
+        resume_result = resume_result
+    )
+    print("PRIORITY IMPROVEMENTS:", priority_improvements)
     return {
         "filename": file.filename,
         "resume_analysis": resume_result,
         "ats_analysis": ats_result,
         "ai_analysis": ai_result,
+        "priority_improvements": priority_improvements
     }
 
     
