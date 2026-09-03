@@ -11,15 +11,21 @@ COMMON_TECHNICAL_SKILLS = [
     "c++",
     "c#",
     "go",
+    "rust",
+    "kotlin",
+    "php",
+    "ruby",
 
     # Backend
     "fastapi",
     "django",
     "flask",
     "spring",
+    "spring boot",
     "node.js",
     "node",
     ".net",
+    "asp.net",
 
     # Frontend
     "react",
@@ -27,6 +33,7 @@ COMMON_TECHNICAL_SKILLS = [
     "vue",
     "html",
     "css",
+    "tailwind",
 
     # Databases
     "sql",
@@ -35,6 +42,8 @@ COMMON_TECHNICAL_SKILLS = [
     "mysql",
     "mongodb",
     "redis",
+    "sqlite",
+    "oracle",
 
     # Cloud / DevOps
     "aws",
@@ -47,9 +56,11 @@ COMMON_TECHNICAL_SKILLS = [
 
     # APIs / Tools
     "rest",
+    "rest api",
     "graphql",
     "git",
     "github",
+    "gitlab",
     "linux",
 
     # Engineering concepts
@@ -57,7 +68,14 @@ COMMON_TECHNICAL_SKILLS = [
     "ci/cd",
     "unit testing",
     "integration testing",
+    "testing",
+    "debugging",
+    "troubleshooting",
+    "clean code",
+    "agile",
+    "scrum",
 ]
+
 
 
 EDUCATION_TERMS = [
@@ -72,16 +90,41 @@ EDUCATION_TERMS = [
 ]
 
 
-def _contains_term(term: str, text: str) -> bool:
-    """Check whether a term appears as a complete term."""
-    pattern = rf"(?<!\w){re.escape(term.lower())}(?!\w)"
+def _contains_term(term: str,text: str, ) -> bool:
+    """
+    Check whether a term appears as a standalone skill/term.
+
+    Handles programming languages with special characters:
+
+        C     != C#
+        C     != C++
+        Java  != JavaScript
+        C++   == C++
+        C#    == C#
+    """
+
+    term = term.lower().strip()
+    text = text.lower()
+
+    escaped_term = re.escape(term)
+
+    if term in {"c", "c++", "c#"}:
+        pattern = (
+            rf"(?<![a-z0-9+#])"
+            rf"{escaped_term}"
+            rf"(?![a-z0-9+#])"
+        )
+    else:
+        pattern = (
+            rf"(?<![a-z0-9])"
+            rf"{escaped_term}"
+            rf"(?![a-z0-9])"
+        )
 
     return bool(
-        re.search(
-            pattern,
-            text.lower(),
-        )
+        re.search(pattern, text)
     )
+
 
 
 def _extract_skills(text: str) -> list[str]:
@@ -200,59 +243,214 @@ def _extract_responsibilities(
     text: str,
 ) -> list[str]:
     """
-    Extract responsibility-like lines from the JD.
+    Extract responsibility-like statements from a job description.
 
-    This is intentionally lightweight for V1.
-    A stronger semantic extraction can be added later with Gemini.
+    Supports:
+    1. Bullet-point JDs
+    2. Responsibility sections
+    3. Normal prose JDs
+
+    Example:
+
+        "Design, develop and maintain scalable applications.
+         Collaborate with teams and troubleshoot issues."
+
+    Can produce:
+
+        [
+            "Design, develop and maintain scalable applications.",
+            "Collaborate with teams and troubleshoot issues."
+        ]
     """
 
-    responsibilities = []
+    responsibilities: list[str] = []
 
-    lines = text.splitlines()
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
+    ]
 
-    responsibility_keywords = (
+    # ---------------------------------------------------------
+    # 1. First try explicit responsibility sections
+    # ---------------------------------------------------------
+
+    responsibility_headers = (
         "responsibilities",
         "responsibility",
         "what you'll do",
         "what you will do",
-        "requirements",
-        "role",
-        "you will",
-        "you'll",
+        "what you'll be doing",
+        "role responsibilities",
+        "key responsibilities",
+        "duties",
     )
 
     in_responsibility_section = False
 
     for line in lines:
-        cleaned = line.strip()
+        lower_line = line.lower()
 
-        if not cleaned:
-            continue
-
-        lower_line = cleaned.lower()
-
-        # Detect a likely responsibility section.
+        # Detect responsibility section.
         if any(
-            keyword in lower_line
-            for keyword in responsibility_keywords
+            header in lower_line
+            for header in responsibility_headers
         ):
             in_responsibility_section = True
             continue
 
-        if in_responsibility_section and cleaned.startswith(
+        if in_responsibility_section:
+
+            # Stop when another obvious section starts.
+            if (
+                lower_line.endswith(":")
+                and len(lower_line.split()) <= 6
+            ):
+                in_responsibility_section = False
+                continue
+
+            # Bullet point.
+            if line.startswith(
+                ("-", "•", "*", "–", "—")
+            ):
+                responsibility = line.lstrip(
+                    "-•*–— "
+                ).strip()
+
+                if responsibility:
+                    responsibilities.append(
+                        responsibility
+                    )
+
+    # If we found responsibilities, return them.
+    if responsibilities:
+        return responsibilities[:15]
+
+    # ---------------------------------------------------------
+    # 2. Look for bullet points anywhere in the JD
+    # ---------------------------------------------------------
+
+    bullet_responsibilities: list[str] = []
+
+    for line in lines:
+
+        if line.startswith(
             ("-", "•", "*", "–", "—")
         ):
-            # Accept bullet-point lines.
-            responsibility = cleaned.lstrip(
+            responsibility = line.lstrip(
                 "-•*–— "
             ).strip()
 
             if responsibility:
-                responsibilities.append(
+                bullet_responsibilities.append(
                     responsibility
                 )
 
-    return responsibilities[:15]
+    if bullet_responsibilities:
+        return bullet_responsibilities[:15]
+
+    # ---------------------------------------------------------
+    # 3. Fallback: analyze normal prose
+    # ---------------------------------------------------------
+    #
+    # Example:
+    #
+    # "Software Engineer responsible for designing,
+    # developing, testing, and maintaining scalable
+    # applications. Collaborate with teams, write clean
+    # code, troubleshoot issues, and implement new features."
+    #
+    # Split the prose into sentences and identify sentences
+    # containing responsibility/action verbs.
+    # ---------------------------------------------------------
+
+    action_verbs = {
+        "design",
+        "designing",
+        "develop",
+        "developing",
+        "build",
+        "building",
+        "create",
+        "creating",
+        "implement",
+        "implementing",
+        "maintain",
+        "maintaining",
+        "test",
+        "testing",
+        "debug",
+        "debugging",
+        "troubleshoot",
+        "troubleshooting",
+        "collaborate",
+        "collaborating",
+        "write",
+        "writing",
+        "develop",  # noqa: B033
+        "developing",  # noqa: B033
+        "deploy",
+        "deploying",
+        "manage",
+        "managing",
+        "optimize",
+        "optimizing",
+        "integrate",
+        "integrating",
+        "review",
+        "reviewing",
+        "support",
+        "supporting",
+    }
+
+    # Convert newlines into spaces.
+    normalized_text = " ".join(lines)
+
+    # Split into sentences.
+    sentences = re.split(
+        r"(?<=[.!?])\s+",
+        normalized_text,
+    )
+
+    for sentence in sentences:
+
+        sentence = sentence.strip()
+
+        if not sentence:
+            continue
+
+        sentence_lower = sentence.lower()
+
+        # Check whether sentence contains an action verb.
+        words = set(
+            re.findall(
+                r"\b[a-zA-Z]+\b",
+                sentence_lower,
+            )
+        )
+
+        if words.intersection(action_verbs):
+
+            responsibilities.append(sentence)
+
+    # ---------------------------------------------------------
+    # 4. Handle "responsible for X, Y, Z"
+    # ---------------------------------------------------------
+    #
+    # Example:
+    #
+    # "Responsible for designing, developing, testing,
+    # and maintaining scalable applications."
+    #
+    # Sentence-level extraction may keep this as one item,
+    # which is actually fine for V1.
+    # ---------------------------------------------------------
+
+    return list(
+        dict.fromkeys(responsibilities)
+    )[:15]
+
+
 
 
 def analyze_job_description(
@@ -273,12 +471,10 @@ def analyze_job_description(
 
     skills = _extract_skills(text)
 
-    experience_requirement = (
-        _extract_experience_requirement(text)
-    )
+    experience_requirement = (_extract_experience_requirement(text))
 
     education_requirements = _extract_education(text)
-    responsibilities = []
+    responsibilities = _extract_responsibilities(text)
     return {
         "target_role": target_role,
 
@@ -288,7 +484,7 @@ def analyze_job_description(
                 "required": skills,
                 "preferred": [],
             },
-            "education": {
+            "education": { 
                 "required": education_requirements,
                 "preferred": [],
             },

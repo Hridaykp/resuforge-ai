@@ -5,6 +5,11 @@ from google import genai
 
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
+
+# for model in client.models.list():
+#     print(model.name)
+
+
 MAX_RETRIES = 3
 BASE_DELAY = 2
 
@@ -184,46 +189,48 @@ def _is_retryable_error(exc: Exception) -> bool:
     )
 
 
-def _generate_with_retry(prompt: str,):
-    
-    # Use Gemini API with automatic retries when a request fails.
-
+def _generate_with_retry(prompt: str):
     global client
 
     if client is None:
-        client = genai.Client(
-            api_key=GEMINI_API_KEY
-        )
+        if not GEMINI_API_KEY:
+            raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+        client = genai.Client(api_key=GEMINI_API_KEY)
 
     for attempt in range(MAX_RETRIES):
-
         try:
-            return client.models.generate_content(
-                model="gemini-3.6-flash",
+            print(f"Calling Gemini 3.5 Lite... attempt {attempt + 1}")
+            print(f"Prompt length: {len(prompt)} characters")
+
+            response = client.models.generate_content(
+                model="gemini-3.5-flash-lite",
                 contents=prompt,
             )
 
-        except Exception as exc:
+            print("Gemini response received.")
 
-            # Don't retry permanent errors such as
-            # invalid API keys or malformed requests.
+            return response
+
+        except Exception as exc:
+            print("=" * 60)
+            print("GEMINI ERROR")
+            print("Type:", type(exc).__name__)
+            print("Message:", str(exc))
+            print("=" * 60)
+
             if not _is_retryable_error(exc):
                 raise
 
-            # Last attempt failed.
             if attempt == MAX_RETRIES - 1:
                 raise RuntimeError(
-                    "Gemini AI service is temporarily unavailable "
-                    "after multiple retry attempts."
+                    f"Gemini request failed after {MAX_RETRIES} attempts: "
+                    f"{type(exc).__name__}: {exc}"
                 ) from exc
 
             delay = BASE_DELAY * (2 ** attempt)
 
-            print(
-                f"Gemini request failed. "
-                f"Retrying in {delay} seconds..."
-            )
-
+            print(f"Retrying in {delay} seconds...")
             time.sleep(delay)
 
 
