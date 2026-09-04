@@ -53,8 +53,8 @@ export default function ResultsPage() {
       </main>
     );
   }
-    console.log("FULL RESULT:", result);
-    console.log("PRIORITY IMPROVEMENTS:",result.priority_improvements);
+    // console.log("FULL RESULT:", result);
+    // console.log("PRIORITY IMPROVEMENTS:",result.priority_improvements);
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-16">
       <ResultsHeader

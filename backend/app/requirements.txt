@@ -3,6 +3,7 @@ uvicorn[standard]
 python-multipart
 python-dotenv
 google-genai
+openai
 pydantic
 PyMuPDF
 python-docx
