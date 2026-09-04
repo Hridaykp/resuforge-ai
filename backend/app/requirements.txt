@@ -7,3 +7,5 @@ openai
 pydantic
 PyMuPDF
 python-docx
+pytest
+httpx
