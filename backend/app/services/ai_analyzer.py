@@ -1,18 +1,37 @@
 import time
 
-from app.core.config import GEMINI_API_KEY
+from app.core.config import GEMINI_API_KEY, GROQ_API_KEY
 from google import genai
+from openai import OpenAI
 
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+# ---------------------------------------------------------
+# Clients
+# ---------------------------------------------------------
+
+gemini_client = (
+    genai.Client(api_key=GEMINI_API_KEY)
+    if GEMINI_API_KEY
+    else None
+)
+
+groq_client = (
+    OpenAI(api_key=GROQ_API_KEY)
+    if GROQ_API_KEY
+    else None
+)
 
 
-# for model in client.models.list():
-#     print(model.name)
-
+# ---------------------------------------------------------
+# Retry configuration
+# ---------------------------------------------------------
 
 MAX_RETRIES = 3
 BASE_DELAY = 2
 
+
+# ---------------------------------------------------------
+# Prompt
+# ---------------------------------------------------------
 
 def _build_prompt(
     resume_text: str,
@@ -100,11 +119,11 @@ def _build_prompt(
         """.strip()
 
 
+# ---------------------------------------------------------
+# Response parser
+# ---------------------------------------------------------
+
 def _parse_ai_response(text: str) -> dict:
-    """
-    Convert Gemini's structured plain-text response
-    into a clean API response.
-    """
 
     sections = {
         "overall_assessment": "",
@@ -132,7 +151,6 @@ def _parse_ai_response(text: str) -> dict:
         if not line:
             continue
 
-        # Detect section headers
         if line in section_mapping:
             current_section = section_mapping[line]
             continue
@@ -140,21 +158,18 @@ def _parse_ai_response(text: str) -> dict:
         if current_section is None:
             continue
 
-        # Overall assessment is plain text
         if current_section == "overall_assessment":
             if sections[current_section]:
                 sections[current_section] += " " + line
             else:
                 sections[current_section] = line
 
-        # Numbered suggestions
         elif current_section == "suggestions":
-            if line[0:2].isdigit() and line[2:3] == ".":
-                line = line[3:].strip()
+            if len(line) >= 2 and line[0].isdigit() and line[1] == ".":
+                line = line[2:].strip()
 
             sections[current_section].append(line)
 
-        # Bullet-point sections
         else:
             if line.startswith("-"):
                 line = line[1:].strip()
@@ -164,23 +179,34 @@ def _parse_ai_response(text: str) -> dict:
     return sections
 
 
-def _is_retryable_error(exc: Exception) -> bool:
+# ---------------------------------------------------------
+# Retryable error detection
+# ---------------------------------------------------------
 
-    # Determine whether a Gemini error is temporary and safe to retry.
+def _is_retryable_error(exc: Exception) -> bool:
 
     error_text = str(exc).lower()
 
     retryable_errors = [
+        "429",
+        "rate limit",
+        "too many requests",
+        "resource exhausted",
+
+        "500",
+        "502",
         "503",
+        "504",
+
         "unavailable",
         "service unavailable",
-        "429",
-        "resource exhausted",
-        "500",
-        "internal",
-        "504",
-        "deadline exceeded",
+        "internal server error",
+
         "timeout",
+        "timed out",
+        "deadline exceeded",
+
+        "connection",
     ]
 
     return any(
@@ -189,50 +215,211 @@ def _is_retryable_error(exc: Exception) -> bool:
     )
 
 
-def _generate_with_retry(prompt: str):
-    global client
+# ---------------------------------------------------------
+# Gemini
+# ---------------------------------------------------------
 
-    if client is None:
-        if not GEMINI_API_KEY:
-            raise RuntimeError("GEMINI_API_KEY is not configured.")
+def _generate_with_gemini(prompt: str):
 
-        client = genai.Client(api_key=GEMINI_API_KEY)
+    if gemini_client is None:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured."
+        )
+
+    last_exception = None
 
     for attempt in range(MAX_RETRIES):
-        try:
-            print(f"Calling Gemini 3.5 Lite... attempt {attempt + 1}")
-            print(f"Prompt length: {len(prompt)} characters")
 
-            response = client.models.generate_content(
+        try:
+            print(
+                f"[Gemini] Attempt "
+                f"{attempt + 1}/{MAX_RETRIES}"
+            )
+
+            response = gemini_client.models.generate_content(
                 model="gemini-3.5-flash-lite",
                 contents=prompt,
             )
 
-            print("Gemini response received.")
+            if not response.text:
+                raise RuntimeError(
+                    "Gemini returned an empty response."
+                )
 
-            return response
+            print("[Gemini] Success")
+
+            return response.text
 
         except Exception as exc:
-            print("=" * 60)
-            print("GEMINI ERROR")
-            print("Type:", type(exc).__name__)
-            print("Message:", str(exc))
-            print("=" * 60)
+
+            last_exception = exc
+
+            print(
+                f"[Gemini] Error: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+            # Don't retry errors that are clearly permanent.
+            if not _is_retryable_error(exc):
+                raise
+
+            if attempt == MAX_RETRIES - 1:
+                break
+
+            delay = BASE_DELAY * (2 ** attempt)
+
+            print(
+                f"[Gemini] Retrying in {delay} seconds..."
+            )
+
+            time.sleep(delay)
+
+    raise RuntimeError(
+        f"Gemini failed after {MAX_RETRIES} attempts: "
+        f"{last_exception}"
+    )
+
+
+# ---------------------------------------------------------
+# Groq
+# ---------------------------------------------------------
+
+def _generate_with_groq(prompt: str):
+
+    if groq_client is None:
+        raise RuntimeError(
+            "GROQ_API_KEY is not configured."
+        )
+
+    last_exception = None
+
+    for attempt in range(MAX_RETRIES):
+
+        try:
+            print(
+                f"[Groq] Attempt "
+                f"{attempt + 1}/{MAX_RETRIES}"
+            )
+
+            response = groq_client.chat.completions.create(
+                model="openai/gpt-oss-120b",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                temperature=0.2,
+            )
+
+            text = response.choices[0].message.content
+
+            if not text:
+                raise RuntimeError(
+                    "Groq returned an empty response."
+                )
+
+            print("[Groq] Success")
+
+            return text
+
+        except Exception as exc:
+
+            last_exception = exc
+
+            print(
+                f"[Groq] Error: "
+                f"{type(exc).__name__}: {exc}"
+            )
 
             if not _is_retryable_error(exc):
                 raise
 
             if attempt == MAX_RETRIES - 1:
-                raise RuntimeError(
-                    f"Gemini request failed after {MAX_RETRIES} attempts: "
-                    f"{type(exc).__name__}: {exc}"
-                ) from exc
+                break
 
             delay = BASE_DELAY * (2 ** attempt)
 
-            print(f"Retrying in {delay} seconds...")
+            print(
+                f"[Groq] Retrying in {delay} seconds..."
+            )
+
             time.sleep(delay)
 
+    raise RuntimeError(
+        f"Groq failed after {MAX_RETRIES} attempts: "
+        f"{last_exception}"
+    )
+
+
+# ---------------------------------------------------------
+# Main AI generation with fallback
+# ---------------------------------------------------------
+
+def _generate_with_fallback(prompt: str) -> str:
+
+    # =====================================================
+    # 1. TRY GEMINI FIRST
+    # =====================================================
+
+    if GEMINI_API_KEY:
+
+        try:
+            print("=" * 60)
+            print("PRIMARY PROVIDER: GEMINI")
+            print("=" * 60)
+
+            return _generate_with_gemini(prompt)
+
+        except Exception as gemini_error:  # noqa: BLE001
+
+            print("=" * 60)
+            print("GEMINI FAILED")
+            print(
+                f"{type(gemini_error).__name__}: "
+                f"{gemini_error}"
+            )
+            print("Switching to Groq...")
+            print("=" * 60)
+
+    # =====================================================
+    # 2. FALLBACK TO GROQ
+    # =====================================================
+
+    if GROQ_API_KEY:
+
+        try:
+            print("=" * 60)
+            print("FALLBACK PROVIDER: GROQ")
+            print("=" * 60)
+
+            return _generate_with_groq(prompt)
+
+        except Exception as groq_error:
+
+            print("=" * 60)
+            print("GROQ FAILED")
+            print(
+                f"{type(groq_error).__name__}: "
+                f"{groq_error}"
+            )
+            print("=" * 60)
+
+            raise RuntimeError(
+                "Both Gemini and Groq failed. "
+                f"Gemini error occurred before Groq; "
+                f"Groq error: {groq_error}"
+            ) from groq_error
+
+    raise RuntimeError(
+        "No AI provider is configured. "
+        "Configure GEMINI_API_KEY or GROQ_API_KEY."
+    )
+
+
+# ---------------------------------------------------------
+# Public analyzer
+# ---------------------------------------------------------
 
 def analyze_resume(
     resume_text: str,
@@ -241,27 +428,30 @@ def analyze_resume(
 ) -> dict:
 
     if not resume_text or not resume_text.strip():
-        raise ValueError("Resume text cannot be empty.")
+        raise ValueError(
+            "Resume text cannot be empty."
+        )
 
-    if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not configured.")
+    if not GEMINI_API_KEY and not GROQ_API_KEY:
+        raise RuntimeError(
+            "No AI API keys are configured."
+        )
 
     try:
+
         prompt = _build_prompt(
             resume_text=resume_text,
             target_role=target_role,
             job_description=job_description,
         )
 
+        # Gemini → Groq fallback
+        response_text = _generate_with_fallback(
+            prompt=prompt
+        )
 
-        response = _generate_with_retry(prompt=prompt)
+        return _parse_ai_response(response_text)
 
-        if not response.text:
-            raise RuntimeError(
-                "No response from the AI model."
-            )
-        return _parse_ai_response(response.text)
-    
     except RuntimeError:
         raise
 
